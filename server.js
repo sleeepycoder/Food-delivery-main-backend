@@ -78,7 +78,7 @@ const connectDB = async () => {
     // Try alternative connection method
     console.log('🔄 Trying alternative connection...');
     try {
-      const simpleURI = 'mongodb+srv://pankajschauhan0592:pankaj809080@cluster.mongodb.net/foodie-express';
+      const simpleURI = 'mongodb+srv://pankajschauhan:pankaj809080@cluster0.qxcxop3.mongodb.net/foodie-express?retryWrites=true&w=majority&appName=Cluster0';
       const conn = await mongoose.connect(simpleURI, {
         useNewUrlParser: true,
         useUnifiedTopology: true,
