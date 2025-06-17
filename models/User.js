@@ -1,83 +1,47 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose')
 
-const UserSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Please add a name'],
+    required: [true, 'Please provide a name'],
     trim: true,
     maxlength: [50, 'Name cannot be more than 50 characters']
   },
   email: {
     type: String,
-    required: [true, 'Please add an email'],
+    required: [true, 'Please provide an email'],
     unique: true,
     lowercase: true,
     match: [
-      /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-      'Please add a valid email'
+      /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
+      'Please provide a valid email'
     ]
   },
   phone: {
     type: String,
-    required: [true, 'Please add a phone number'],
-    match: [
-      /^\+?[\d\s\-\(\)]+$/,
-      'Please add a valid phone number'
-    ]
+    required: [true, 'Please provide a phone number'],
+    trim: true
   },
   password: {
     type: String,
-    required: [true, 'Please add a password'],
-    minlength: 6,
-    select: false
-  },
-  role: {
-    type: String,
-    enum: ['customer', 'restaurant', 'admin', 'delivery'],
-    default: 'customer'
+    required: [true, 'Please provide a password'],
+    minlength: [6, 'Password must be at least 6 characters']
   },
   address: {
     street: String,
     city: String,
     state: String,
     zipCode: String,
-    coordinates: {
-      type: [Number], // [longitude, latitude]
-      index: '2dsphere'
-    }
+    instructions: String
   },
-  avatar: {
+  role: {
     type: String,
-    default: 'default-avatar.jpg'
+    enum: ['customer', 'admin', 'restaurant'],
+    default: 'customer'
   },
   isActive: {
     type: Boolean,
     default: true
-  },
-  emailVerified: {
-    type: Boolean,
-    default: false
-  },
-  phoneVerified: {
-    type: Boolean,
-    default: false
-  },
-  preferences: {
-    notifications: {
-      email: { type: Boolean, default: true },
-      sms: { type: Boolean, default: false },
-      push: { type: Boolean, default: true }
-    },
-    dietary: [{
-      type: String,
-      enum: ['vegetarian', 'vegan', 'gluten-free', 'dairy-free', 'nut-free', 'halal', 'kosher']
-    }]
-  },
-  loyaltyPoints: {
-    type: Number,
-    default: 0
   },
   totalOrders: {
     type: Number,
@@ -87,41 +51,15 @@ const UserSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  lastLogin: Date,
-  resetPasswordToken: String,
-  resetPasswordExpire: Date,
-  emailVerificationToken: String,
-  emailVerificationExpire: Date
+  loyaltyPoints: {
+    type: Number,
+    default: 0
+  }
 }, {
   timestamps: true
-});
+})
 
-// Encrypt password using bcrypt
-UserSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) {
-    next();
-  }
+// Remove duplicate index - only define once
+userSchema.index({ email: 1 }, { unique: true })
 
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-});
-
-// Sign JWT and return
-UserSchema.methods.getSignedJwtToken = function() {
-  return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE
-  });
-};
-
-// Match user entered password to hashed password in database
-UserSchema.methods.matchPassword = async function(enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
-};
-
-// Update last login
-UserSchema.methods.updateLastLogin = function() {
-  this.lastLogin = new Date();
-  return this.save({ validateBeforeSave: false });
-};
-
-module.exports = mongoose.model('User', UserSchema);
+module.exports = mongoose.model('User', userSchema)

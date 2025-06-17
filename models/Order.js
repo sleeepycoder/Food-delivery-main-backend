@@ -1,53 +1,37 @@
-const mongoose = require('mongoose');
+const mongoose = require('mongoose')
 
-const OrderSchema = new mongoose.Schema({
+const orderSchema = new mongoose.Schema({
   orderNumber: {
     type: String,
     unique: true,
     required: true
   },
   customer: {
-    type: mongoose.Schema.ObjectId,
+    type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
   restaurant: {
-    type: mongoose.Schema.ObjectId,
+    type: mongoose.Schema.Types.ObjectId,
     ref: 'Restaurant',
     required: true
   },
   items: [{
     menuItem: {
-      type: mongoose.Schema.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: 'MenuItem',
       required: true
     },
-    name: {
-      type: String,
-      required: true
-    },
-    price: {
-      type: Number,
-      required: true
-    },
+    name: String,
+    price: Number,
     quantity: {
       type: Number,
       required: true,
       min: 1
     },
-    customizations: [{
-      name: String,
-      selectedOptions: [String],
-      additionalPrice: {
-        type: Number,
-        default: 0
-      }
-    }],
+    customizations: [String],
     specialInstructions: String,
-    subtotal: {
-      type: Number,
-      required: true
-    }
+    subtotal: Number
   }],
   pricing: {
     subtotal: {
@@ -62,15 +46,7 @@ const OrderSchema = new mongoose.Schema({
       type: Number,
       required: true
     },
-    serviceFee: {
-      type: Number,
-      default: 0
-    },
     discount: {
-      type: Number,
-      default: 0
-    },
-    tip: {
       type: Number,
       default: 0
     },
@@ -96,69 +72,30 @@ const OrderSchema = new mongoose.Schema({
       type: String,
       required: true
     },
+    instructions: String,
     coordinates: {
-      type: [Number], // [longitude, latitude]
-      index: '2dsphere'
-    },
-    instructions: String
-  },
-  contactInfo: {
-    phone: {
-      type: String,
-      required: true
-    },
-    email: String
+      lat: Number,
+      lng: Number
+    }
   },
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'preparing', 'ready', 'picked-up', 'on-the-way', 'delivered', 'cancelled'],
+    enum: ['pending', 'confirmed', 'preparing', 'ready', 'on-the-way', 'delivered', 'cancelled'],
     default: 'pending'
+  },
+  paymentMethod: {
+    type: String,
+    enum: ['card', 'cash', 'digital-wallet'],
+    required: true
   },
   paymentStatus: {
     type: String,
     enum: ['pending', 'paid', 'failed', 'refunded'],
     default: 'pending'
   },
-  paymentMethod: {
-    type: String,
-    enum: ['cash', 'card', 'digital-wallet'],
-    required: true
-  },
-  paymentDetails: {
-    transactionId: String,
-    paymentGateway: String,
-    last4: String
-  },
-  orderType: {
-    type: String,
-    enum: ['delivery', 'pickup'],
-    default: 'delivery'
-  },
-  scheduledFor: Date,
+  specialInstructions: String,
   estimatedDeliveryTime: Date,
   actualDeliveryTime: Date,
-  preparationTime: {
-    estimated: Number,
-    actual: Number
-  },
-  deliveryDriver: {
-    type: mongoose.Schema.ObjectId,
-    ref: 'User'
-  },
-  tracking: [{
-    status: {
-      type: String,
-      required: true
-    },
-    timestamp: {
-      type: Date,
-      default: Date.now
-    },
-    location: {
-      type: [Number] // [longitude, latitude]
-    },
-    note: String
-  }],
   rating: {
     food: {
       type: Number,
@@ -175,69 +112,29 @@ const OrderSchema = new mongoose.Schema({
       min: 1,
       max: 5
     },
-    comment: String,
-    ratedAt: Date
+    comment: String
   },
-  specialInstructions: String,
-  promoCode: String,
-  loyaltyPointsUsed: {
-    type: Number,
-    default: 0
-  },
-  loyaltyPointsEarned: {
-    type: Number,
-    default: 0
-  },
-  refund: {
-    amount: Number,
-    reason: String,
-    processedAt: Date,
-    refundId: String
-  },
-  cancellation: {
-    reason: String,
-    cancelledBy: {
-      type: String,
-      enum: ['customer', 'restaurant', 'admin']
-    },
-    cancelledAt: Date,
-    refundIssued: {
-      type: Boolean,
-      default: false
-    }
+  driver: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   }
 }, {
   timestamps: true
-});
+})
 
-// Generate order number before saving
-OrderSchema.pre('save', async function(next) {
+// Pre-save middleware to generate order number
+orderSchema.pre('save', async function(next) {
   if (!this.orderNumber) {
-    const count = await this.constructor.countDocuments();
-    this.orderNumber = `FE${Date.now()}${String(count + 1).padStart(4, '0')}`;
+    const count = await mongoose.model('Order').countDocuments()
+    this.orderNumber = `FE${String(count + 1).padStart(6, '0')}`
   }
-  next();
-});
+  next()
+})
 
-// Add tracking entry when status changes
-OrderSchema.pre('save', function(next) {
-  if (this.isModified('status') && !this.isNew) {
-    this.tracking.push({
-      status: this.status,
-      timestamp: new Date()
-    });
-  }
-  next();
-});
+// Remove duplicate index - only define once
+orderSchema.index({ orderNumber: 1 }, { unique: true })
+orderSchema.index({ customer: 1, createdAt: -1 })
+orderSchema.index({ restaurant: 1, createdAt: -1 })
+orderSchema.index({ status: 1 })
 
-// Calculate estimated delivery time
-OrderSchema.methods.calculateEstimatedDeliveryTime = function() {
-  const now = new Date();
-  const preparationTime = this.preparationTime.estimated || 30; // default 30 minutes
-  const deliveryTime = 15; // default 15 minutes for delivery
-  
-  this.estimatedDeliveryTime = new Date(now.getTime() + (preparationTime + deliveryTime) * 60000);
-  return this.estimatedDeliveryTime;
-};
-
-module.exports = mongoose.model('Order', OrderSchema);
+module.exports = mongoose.model('Order', orderSchema)

@@ -1,35 +1,26 @@
-const mongoose = require('mongoose');
+const mongoose = require('mongoose')
 
-const MenuItemSchema = new mongoose.Schema({
+const menuItemSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Please add a menu item name'],
+    required: [true, 'Please provide item name'],
     trim: true,
     maxlength: [100, 'Name cannot be more than 100 characters']
   },
   description: {
     type: String,
-    required: [true, 'Please add a description'],
+    required: [true, 'Please provide item description'],
     maxlength: [500, 'Description cannot be more than 500 characters']
-  },
-  restaurant: {
-    type: mongoose.Schema.ObjectId,
-    ref: 'Restaurant',
-    required: true
-  },
-  category: {
-    type: String,
-    required: [true, 'Please add a category'],
-    enum: ['appetizer', 'main', 'dessert', 'beverage', 'side', 'salad', 'soup', 'pizza', 'burger', 'pasta', 'other']
   },
   price: {
     type: Number,
-    required: [true, 'Please add a price'],
+    required: [true, 'Please provide item price'],
     min: [0, 'Price cannot be negative']
   },
-  originalPrice: {
-    type: Number,
-    min: [0, 'Original price cannot be negative']
+  category: {
+    type: String,
+    required: [true, 'Please provide item category'],
+    enum: ['pizza', 'burger', 'salad', 'dessert', 'beverage', 'appetizer', 'main-course']
   },
   images: [{
     url: {
@@ -38,71 +29,10 @@ const MenuItemSchema = new mongoose.Schema({
     },
     alt: String
   }],
-  ingredients: [{
-    name: {
-      type: String,
-      required: true
-    },
-    allergen: {
-      type: Boolean,
-      default: false
-    }
-  }],
-  nutritionalInfo: {
-    calories: Number,
-    protein: Number,
-    carbs: Number,
-    fat: Number,
-    fiber: Number,
-    sugar: Number,
-    sodium: Number
-  },
-  dietary: [{
-    type: String,
-    enum: ['vegetarian', 'vegan', 'gluten-free', 'dairy-free', 'nut-free', 'halal', 'kosher', 'keto', 'low-carb']
-  }],
-  spiceLevel: {
-    type: String,
-    enum: ['none', 'mild', 'medium', 'hot', 'very-hot'],
-    default: 'none'
-  },
-  preparationTime: {
-    type: Number,
-    required: [true, 'Please add preparation time in minutes'],
-    min: 1
-  },
-  customizations: [{
-    name: {
-      type: String,
-      required: true
-    },
-    options: [{
-      name: String,
-      price: {
-        type: Number,
-        default: 0
-      }
-    }],
-    required: {
-      type: Boolean,
-      default: false
-    },
-    multiSelect: {
-      type: Boolean,
-      default: false
-    }
-  }],
-  rating: {
-    average: {
-      type: Number,
-      min: [1, 'Rating must be at least 1'],
-      max: [5, 'Rating cannot be more than 5'],
-      default: 0
-    },
-    count: {
-      type: Number,
-      default: 0
-    }
+  restaurant: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Restaurant',
+    required: true
   },
   isAvailable: {
     type: Boolean,
@@ -112,25 +42,37 @@ const MenuItemSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  isFeatured: {
-    type: Boolean,
-    default: false
+  preparationTime: {
+    type: Number, // in minutes
+    default: 15
   },
-  orderCount: {
-    type: Number,
-    default: 0
+  nutritionalInfo: {
+    calories: Number,
+    protein: Number,
+    carbs: Number,
+    fat: Number
   },
-  tags: [String]
+  allergens: [String],
+  rating: {
+    average: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5
+    },
+    count: {
+      type: Number,
+      default: 0
+    }
+  }
 }, {
   timestamps: true
-});
+})
 
-// Create index for text search
-MenuItemSchema.index({
-  name: 'text',
-  description: 'text',
-  'ingredients.name': 'text',
-  tags: 'text'
-});
+// Indexes for better performance
+menuItemSchema.index({ category: 1 })
+menuItemSchema.index({ restaurant: 1 })
+menuItemSchema.index({ isAvailable: 1 })
+menuItemSchema.index({ name: 'text', description: 'text' })
 
-module.exports = mongoose.model('MenuItem', MenuItemSchema);
+module.exports = mongoose.model('MenuItem', menuItemSchema)

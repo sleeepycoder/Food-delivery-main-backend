@@ -1,319 +1,188 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-require('dotenv').config();
+const mongoose = require('mongoose')
+const dotenv = require('dotenv')
+const Restaurant = require('../models/Restaurant')
+const MenuItem = require('../models/MenuItem')
 
-// Import models
-const User = require('../models/User');
-const Restaurant = require('../models/Restaurant');
-const MenuItem = require('../models/MenuItem');
-const Order = require('../models/Order');
-
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI);
+dotenv.config()
 
 const seedData = async () => {
   try {
+    await mongoose.connect(process.env.MONGODB_URI)
+    console.log('Connected to MongoDB')
+
     // Clear existing data
-    await User.deleteMany();
-    await Restaurant.deleteMany();
-    await MenuItem.deleteMany();
-    await Order.deleteMany();
+    await Restaurant.deleteMany({})
+    await MenuItem.deleteMany({})
+    console.log('Cleared existing data')
 
-    console.log('🗑️  Cleared existing data');
-
-    // Create users
-    const users = await User.create([
-      {
-        name: 'John Doe',
-        email: 'john@example.com',
-        phone: '+1234567890',
-        password: 'password123',
-        role: 'customer',
-        address: {
-          street: '123 Main St',
-          city: 'New York',
-          state: 'NY',
-          zipCode: '10001'
+    // Create sample restaurant
+    const restaurant = new Restaurant({
+      name: 'FoodieExpress Kitchen',
+      description: 'Delicious food made with love and fresh ingredients',
+      cuisine: ['American', 'Italian', 'Mexican'],
+      address: {
+        street: '123 Food Street',
+        city: 'New York',
+        state: 'NY',
+        zipCode: '10001',
+        coordinates: {
+          lat: 40.7128,
+          lng: -74.0060
         }
       },
-      {
-        name: 'Jane Smith',
-        email: 'jane@example.com',
-        phone: '+1234567891',
-        password: 'password123',
-        role: 'customer',
-        address: {
-          street: '456 Oak Ave',
-          city: 'New York',
-          state: 'NY',
-          zipCode: '10002'
-        }
+      contact: {
+        phone: '+1-555-123-4567',
+        email: 'info@foodieexpress.com',
+        website: 'https://foodieexpress.com'
       },
-      {
-        name: 'Mario Rossi',
-        email: 'mario@pizzapalace.com',
-        phone: '+1234567892',
-        password: 'password123',
-        role: 'restaurant',
-        address: {
-          street: '789 Pizza St',
-          city: 'New York',
-          state: 'NY',
-          zipCode: '10003'
-        }
+      images: [{
+        url: 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=600',
+        alt: 'Restaurant interior'
+      }],
+      rating: {
+        average: 4.5,
+        count: 150
       },
-      {
-        name: 'Admin User',
-        email: 'admin@foodieexpress.com',
-        phone: '+1234567893',
-        password: 'password123',
-        role: 'admin'
-      }
-    ]);
-
-    console.log('👥 Created users');
-
-    // Create restaurants
-    const restaurants = await Restaurant.create([
-      {
-        name: 'Pizza Palace',
-        description: 'Authentic Italian pizza made with fresh ingredients',
-        owner: users[2]._id,
-        cuisine: ['italian'],
-        address: {
-          street: '789 Pizza St',
-          city: 'New York',
-          state: 'NY',
-          zipCode: '10003'
-        },
-        phone: '+1234567892',
-        email: 'mario@pizzapalace.com',
-        rating: { average: 4.5, count: 150 },
-        priceRange: '$$',
-        deliveryFee: 2.99,
+      deliveryInfo: {
+        fee: 2.99,
         minimumOrder: 15,
-        deliveryTime: { min: 25, max: 35 },
-        deliveryRadius: 5,
-        operatingHours: {
-          monday: { open: '11:00', close: '23:00' },
-          tuesday: { open: '11:00', close: '23:00' },
-          wednesday: { open: '11:00', close: '23:00' },
-          thursday: { open: '11:00', close: '23:00' },
-          friday: { open: '11:00', close: '24:00' },
-          saturday: { open: '11:00', close: '24:00' },
-          sunday: { open: '12:00', close: '22:00' }
-        },
-        features: ['delivery', 'pickup'],
-        paymentMethods: ['cash', 'card', 'digital-wallet']
+        estimatedTime: 30,
+        radius: 5
       },
-      {
-        name: 'Burger Junction',
-        description: 'Gourmet burgers and crispy fries',
-        owner: users[2]._id,
-        cuisine: ['american'],
-        address: {
-          street: '456 Burger Ave',
-          city: 'New York',
-          state: 'NY',
-          zipCode: '10004'
-        },
-        phone: '+1234567894',
-        email: 'info@burgerjunction.com',
-        rating: { average: 4.2, count: 89 },
-        priceRange: '$$',
-        deliveryFee: 3.99,
-        minimumOrder: 12,
-        deliveryTime: { min: 20, max: 30 },
-        deliveryRadius: 3,
-        operatingHours: {
-          monday: { open: '10:00', close: '22:00' },
-          tuesday: { open: '10:00', close: '22:00' },
-          wednesday: { open: '10:00', close: '22:00' },
-          thursday: { open: '10:00', close: '22:00' },
-          friday: { open: '10:00', close: '23:00' },
-          saturday: { open: '10:00', close: '23:00' },
-          sunday: { open: '11:00', close: '21:00' }
-        },
-        features: ['delivery', 'pickup'],
-        paymentMethods: ['cash', 'card', 'digital-wallet']
+      operatingHours: {
+        monday: { open: '09:00', close: '22:00', closed: false },
+        tuesday: { open: '09:00', close: '22:00', closed: false },
+        wednesday: { open: '09:00', close: '22:00', closed: false },
+        thursday: { open: '09:00', close: '22:00', closed: false },
+        friday: { open: '09:00', close: '23:00', closed: false },
+        saturday: { open: '09:00', close: '23:00', closed: false },
+        sunday: { open: '10:00', close: '21:00', closed: false }
       }
-    ]);
+    })
 
-    console.log('🏪 Created restaurants');
+    await restaurant.save()
+    console.log('Created sample restaurant')
 
-    // Create menu items
-    const menuItems = await MenuItem.create([
-      // Pizza Palace items
+    // Create sample menu items
+    const menuItems = [
       {
         name: 'Margherita Pizza',
-        description: 'Fresh tomatoes, mozzarella, and basil on crispy crust',
-        restaurant: restaurants[0]._id,
-        category: 'pizza',
+        description: 'Fresh tomatoes, mozzarella cheese, and basil on a crispy crust',
         price: 12.99,
-        images: [{ url: 'https://images.pexels.com/photos/315755/pexels-photo-315755.jpeg', alt: 'Margherita Pizza' }],
-        ingredients: [
-          { name: 'Tomato sauce', allergen: false },
-          { name: 'Mozzarella cheese', allergen: true },
-          { name: 'Fresh basil', allergen: false },
-          { name: 'Pizza dough', allergen: true }
-        ],
-        dietary: ['vegetarian'],
-        preparationTime: 15,
-        rating: { average: 4.8, count: 45 },
-        isPopular: true
+        category: 'pizza',
+        images: [{
+          url: 'https://images.pexels.com/photos/315755/pexels-photo-315755.jpeg?auto=compress&cs=tinysrgb&w=400',
+          alt: 'Margherita Pizza'
+        }],
+        restaurant: restaurant._id,
+        isPopular: true,
+        preparationTime: 20,
+        rating: { average: 4.8, count: 45 }
       },
       {
-        name: 'Pepperoni Pizza',
-        description: 'Classic pepperoni with mozzarella cheese',
-        restaurant: restaurants[0]._id,
-        category: 'pizza',
-        price: 14.99,
-        images: [{ url: 'https://images.pexels.com/photos/1146760/pexels-photo-1146760.jpeg', alt: 'Pepperoni Pizza' }],
-        ingredients: [
-          { name: 'Tomato sauce', allergen: false },
-          { name: 'Mozzarella cheese', allergen: true },
-          { name: 'Pepperoni', allergen: false },
-          { name: 'Pizza dough', allergen: true }
-        ],
+        name: 'Classic Cheeseburger',
+        description: 'Juicy beef patty with cheese, lettuce, tomato, and our special sauce',
+        price: 9.99,
+        category: 'burger',
+        images: [{
+          url: 'https://images.pexels.com/photos/1639557/pexels-photo-1639557.jpeg?auto=compress&cs=tinysrgb&w=400',
+          alt: 'Classic Cheeseburger'
+        }],
+        restaurant: restaurant._id,
+        isPopular: true,
         preparationTime: 15,
-        rating: { average: 4.7, count: 38 }
+        rating: { average: 4.6, count: 32 }
       },
       {
         name: 'Caesar Salad',
-        description: 'Crisp romaine lettuce with parmesan and croutons',
-        restaurant: restaurants[0]._id,
-        category: 'salad',
+        description: 'Crisp romaine lettuce with parmesan cheese, croutons, and Caesar dressing',
         price: 8.99,
-        images: [{ url: 'https://images.pexels.com/photos/1059905/pexels-photo-1059905.jpeg', alt: 'Caesar Salad' }],
-        ingredients: [
-          { name: 'Romaine lettuce', allergen: false },
-          { name: 'Parmesan cheese', allergen: true },
-          { name: 'Croutons', allergen: true },
-          { name: 'Caesar dressing', allergen: true }
-        ],
-        dietary: ['vegetarian'],
+        category: 'salad',
+        images: [{
+          url: 'https://images.pexels.com/photos/1059905/pexels-photo-1059905.jpeg?auto=compress&cs=tinysrgb&w=400',
+          alt: 'Caesar Salad'
+        }],
+        restaurant: restaurant._id,
         preparationTime: 10,
-        rating: { average: 4.5, count: 22 }
+        rating: { average: 4.5, count: 28 }
       },
-      // Burger Junction items
       {
-        name: 'Classic Cheeseburger',
-        description: 'Juicy beef patty with cheese, lettuce, tomato, and special sauce',
-        restaurant: restaurants[1]._id,
-        category: 'burger',
+        name: 'Pepperoni Pizza',
+        description: 'Classic pepperoni with mozzarella cheese on our signature crust',
+        price: 14.99,
+        category: 'pizza',
+        images: [{
+          url: 'https://images.pexels.com/photos/708587/pexels-photo-708587.jpeg?auto=compress&cs=tinysrgb&w=400',
+          alt: 'Pepperoni Pizza'
+        }],
+        restaurant: restaurant._id,
+        preparationTime: 20,
+        rating: { average: 4.7, count: 38 }
+      },
+      {
+        name: 'Chicken Wings',
+        description: 'Crispy chicken wings with your choice of sauce',
         price: 11.99,
-        images: [{ url: 'https://images.pexels.com/photos/1556909/pexels-photo-1556909.jpeg', alt: 'Classic Cheeseburger' }],
-        ingredients: [
-          { name: 'Beef patty', allergen: false },
-          { name: 'Cheese', allergen: true },
-          { name: 'Lettuce', allergen: false },
-          { name: 'Tomato', allergen: false },
-          { name: 'Burger bun', allergen: true }
-        ],
-        preparationTime: 12,
-        rating: { average: 4.6, count: 31 },
-        isPopular: true
+        category: 'appetizer',
+        images: [{
+          url: 'https://images.pexels.com/photos/60616/fried-chicken-chicken-fried-crunchy-60616.jpeg?auto=compress&cs=tinysrgb&w=400',
+          alt: 'Chicken Wings'
+        }],
+        restaurant: restaurant._id,
+        preparationTime: 18,
+        rating: { average: 4.4, count: 25 }
       },
       {
-        name: 'Chicken Burger',
-        description: 'Grilled chicken breast with fresh vegetables',
-        restaurant: restaurants[1]._id,
+        name: 'Chocolate Brownie',
+        description: 'Rich chocolate brownie served warm with vanilla ice cream',
+        price: 6.99,
+        category: 'dessert',
+        images: [{
+          url: 'https://images.pexels.com/photos/1055272/pexels-photo-1055272.jpeg?auto=compress&cs=tinysrgb&w=400',
+          alt: 'Chocolate Brownie'
+        }],
+        restaurant: restaurant._id,
+        preparationTime: 5,
+        rating: { average: 4.9, count: 42 }
+      },
+      {
+        name: 'Fresh Lemonade',
+        description: 'Freshly squeezed lemonade with a hint of mint',
+        price: 3.99,
+        category: 'beverage',
+        images: [{
+          url: 'https://images.pexels.com/photos/96974/pexels-photo-96974.jpeg?auto=compress&cs=tinysrgb&w=400',
+          alt: 'Fresh Lemonade'
+        }],
+        restaurant: restaurant._id,
+        preparationTime: 3,
+        rating: { average: 4.3, count: 18 }
+      },
+      {
+        name: 'BBQ Bacon Burger',
+        description: 'Beef patty with BBQ sauce, bacon, onion rings, and cheddar cheese',
+        price: 12.99,
         category: 'burger',
-        price: 9.99,
-        images: [{ url: 'https://images.pexels.com/photos/1639557/pexels-photo-1639557.jpeg', alt: 'Chicken Burger' }],
-        ingredients: [
-          { name: 'Chicken breast', allergen: false },
-          { name: 'Lettuce', allergen: false },
-          { name: 'Tomato', allergen: false },
-          { name: 'Burger bun', allergen: true }
-        ],
-        preparationTime: 12,
-        rating: { average: 4.4, count: 28 }
-      },
-      {
-        name: 'French Fries',
-        description: 'Crispy golden fries with sea salt',
-        restaurant: restaurants[1]._id,
-        category: 'side',
-        price: 4.99,
-        images: [{ url: 'https://images.pexels.com/photos/1893556/pexels-photo-1893556.jpeg', alt: 'French Fries' }],
-        ingredients: [
-          { name: 'Potatoes', allergen: false },
-          { name: 'Sea salt', allergen: false },
-          { name: 'Vegetable oil', allergen: false }
-        ],
-        dietary: ['vegetarian', 'vegan'],
-        preparationTime: 8,
-        rating: { average: 4.3, count: 19 }
+        images: [{
+          url: 'https://images.pexels.com/photos/1556909/pexels-photo-1556909.jpeg?auto=compress&cs=tinysrgb&w=400',
+          alt: 'BBQ Bacon Burger'
+        }],
+        restaurant: restaurant._id,
+        preparationTime: 18,
+        rating: { average: 4.8, count: 35 }
       }
-    ]);
+    ]
 
-    console.log('🍕 Created menu items');
+    await MenuItem.insertMany(menuItems)
+    console.log('Created sample menu items')
 
-    // Create sample orders
-    const orders = await Order.create([
-      {
-        customer: users[0]._id,
-        restaurant: restaurants[0]._id,
-        items: [
-          {
-            menuItem: menuItems[0]._id,
-            name: 'Margherita Pizza',
-            price: 12.99,
-            quantity: 1,
-            subtotal: 12.99
-          },
-          {
-            menuItem: menuItems[2]._id,
-            name: 'Caesar Salad',
-            price: 8.99,
-            quantity: 1,
-            subtotal: 8.99
-          }
-        ],
-        pricing: {
-          subtotal: 21.98,
-          tax: 1.76,
-          deliveryFee: 0,
-          total: 23.74
-        },
-        deliveryAddress: {
-          street: '123 Main St',
-          city: 'New York',
-          state: 'NY',
-          zipCode: '10001'
-        },
-        contactInfo: {
-          phone: '+1234567890',
-          email: 'john@example.com'
-        },
-        status: 'delivered',
-        paymentMethod: 'card',
-        paymentStatus: 'paid',
-        actualDeliveryTime: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-        rating: {
-          food: 5,
-          delivery: 4,
-          overall: 5,
-          comment: 'Excellent food and fast delivery!',
-          ratedAt: new Date(Date.now() - 1 * 60 * 60 * 1000)
-        }
-      }
-    ]);
+    console.log('Seed data created successfully!')
+    process.exit(0)
 
-    console.log('📦 Created sample orders');
-
-    console.log('✅ Database seeded successfully!');
-    console.log('\n📋 Sample login credentials:');
-    console.log('Customer: john@example.com / password123');
-    console.log('Restaurant: mario@pizzapalace.com / password123');
-    console.log('Admin: admin@foodieexpress.com / password123');
-
-    process.exit(0);
   } catch (error) {
-    console.error('❌ Error seeding database:', error);
-    process.exit(1);
+    console.error('Seed data error:', error)
+    process.exit(1)
   }
-};
+}
 
-seedData();
+seedData()

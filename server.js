@@ -1,155 +1,160 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
-const path = require('path');
-require('dotenv').config();
+const express = require('express')
+const mongoose = require('mongoose')
+const cors = require('cors')
+const dotenv = require('dotenv')
 
-// Import routes
-const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/users');
-const menuRoutes = require('./routes/menu');
-const orderRoutes = require('./routes/orders');
-const restaurantRoutes = require('./routes/restaurants');
+// Load environment variables
+dotenv.config()
 
-// Import middleware
-const errorHandler = require('./middleware/errorHandler');
+const app = express()
 
-const app = express();
-
-// Security middleware
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
-});
-app.use('/api/', limiter);
-
-// CORS configuration - Allow all origins in production for now
+// Middleware
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // Allow all origins for now - you can restrict this later
-    return callback(null, true);
-  },
-  credentials: true
-}));
+  origin: [
+    'http://localhost:5173', 
+    'http://localhost:3000', 
+    'https://your-frontend-domain.com',
+    // Add any other frontend domains you might deploy to
+    /^https:\/\/.*\.netlify\.app$/,
+    /^https:\/\/.*\.vercel\.app$/,
+    /^https:\/\/.*\.surge\.sh$/
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}))
 
-// Body parser middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
-// Logging middleware
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
-} else {
-  app.use(morgan('combined'));
-}
-
-// Static files
-app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
-
-// Connect to MongoDB with better error handling
-const connectDB = async () => {
-  try {
-    // Remove the appName parameter that's causing issues
-    const mongoURI = process.env.MONGODB_URI.replace('&appName=Cluster', '');
-    
-    const conn = await mongoose.connect(mongoURI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-      socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
-    });
-    
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
-  } catch (error) {
-    console.error('❌ MongoDB connection error:', error.message);
-    
-    // Try alternative connection method
-    console.log('🔄 Trying alternative connection...');
-    try {
-      const simpleURI = 'mongodb+srv://pankajschauhan:pankaj809080@cluster0.qxcxop3.mongodb.net/foodie-express?retryWrites=true&w=majority&appName=Cluster0';
-      const conn = await mongoose.connect(simpleURI, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-      });
-      console.log(`✅ MongoDB Connected (alternative): ${conn.connection.host}`);
-    } catch (altError) {
-      console.error('❌ Alternative connection failed:', altError.message);
-      process.exit(1);
-    }
-  }
-};
-
-connectDB();
+// Add request logging for debugging
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`)
+  next()
+})
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/menu', menuRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/restaurants', restaurantRoutes);
+app.use('/api/auth', require('./routes/auth'))
+app.use('/api/menu', require('./routes/menu'))
+app.use('/api/restaurants', require('./routes/restaurants'))
+app.use('/api/orders', require('./routes/orders'))
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'FoodieExpress API is running!',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
-  });
-});
+app.get('/api/health', async (req, res) => {
+  try {
+    const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
+    res.json({
+      success: true,
+      message: 'FoodieExpress Backend is running',
+      database: dbStatus,
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development'
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    })
+  }
+})
 
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({
-    message: 'FoodieExpress API',
+    success: true,
+    message: 'FoodieExpress API Server',
     version: '1.0.0',
-    status: 'running',
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
-  });
-});
+    endpoints: {
+      health: '/api/health',
+      auth: '/api/auth',
+      auth_register: '/api/auth/register',
+      auth_login: '/api/auth/login',
+      menu: '/api/menu',
+      restaurants: '/api/restaurants',
+      orders: '/api/orders'
+    }
+  })
+})
 
-// Handle 404 routes
+// 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
-    message: 'Route not found'
-  });
-});
+    message: `Route ${req.originalUrl} not found`,
+    availableRoutes: ['/api/auth', '/api/menu', '/api/restaurants', '/api/orders']
+  })
+})
 
 // Error handling middleware
-app.use(errorHandler);
+app.use((error, req, res, next) => {
+  console.error('Server Error:', error)
+  res.status(500).json({
+    success: false,
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+  })
+})
 
-const PORT = process.env.PORT || 5000;
+// MongoDB connection with modern options only
+const connectDB = async () => {
+  try {
+    console.log('Attempting to connect to MongoDB...')
+    console.log('MongoDB URI:', process.env.MONGODB_URI ? 'Set' : 'Not set')
+    
+    // Modern connection options - removed all deprecated options
+    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      maxPoolSize: 10,
+      bufferCommands: false
+    })
 
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
-});
+    console.log(`MongoDB Connected: ${conn.connection.host}`)
+    
+    // Test the connection
+    await mongoose.connection.db.admin().ping()
+    console.log('MongoDB ping successful')
+    
+  } catch (error) {
+    console.error('MongoDB connection error:', error)
+    
+    // Don't exit in production, let Render restart the service
+    if (process.env.NODE_ENV !== 'production') {
+      process.exit(1)
+    }
+  }
+}
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (err, promise) => {
-  console.log(`❌ Unhandled Rejection: ${err.message}`);
-  server.close(() => {
-    process.exit(1);
-  });
-});
+// Connect to database
+connectDB()
 
-// Handle uncaught exceptions
-process.on('uncaughtException', (err) => {
-  console.log(`❌ Uncaught Exception: ${err.message}`);
-  process.exit(1);
-});
+// Handle MongoDB connection events
+mongoose.connection.on('connected', () => {
+  console.log('Mongoose connected to MongoDB')
+})
 
-module.exports = app;
+mongoose.connection.on('error', (err) => {
+  console.error('Mongoose connection error:', err)
+})
+
+mongoose.connection.on('disconnected', () => {
+  console.log('Mongoose disconnected')
+})
+
+const PORT = process.env.PORT || 5000
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`)
+  console.log(`Health check: http://localhost:${PORT}/api/health`)
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`)
+})
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully')
+  mongoose.connection.close(() => {
+    console.log('MongoDB connection closed')
+    process.exit(0)
+  })
+})
